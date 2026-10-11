@@ -1,0 +1,4 @@
+[submodule "worker-cuda/third_party/cutlass"]
+	path = worker-cuda/third_party/cutlass
+	url = https://github.com/NVIDIA/cutlass.git
+	branch = main

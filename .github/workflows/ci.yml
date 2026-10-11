@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version override (unused by ci; accepted for make ci parity)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CUDA_VERSION: "12.8.1"
+
+jobs:
+  cpu-tests:
+    # Reference backend (Accelerate): kernel + STFT unit tests run without a GPU.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install lame
+        run: brew install lame
+      - name: Build
+        run: |
+          cmake -S worker-cuda -B worker-cuda/build-cpu -DDC_BACKEND=cpu -DCMAKE_BUILD_TYPE=Release
+          cmake --build worker-cuda/build-cpu -j
+      - name: Unit tests
+        run: |
+          worker-cuda/build-cpu/test_stft
+          worker-cuda/build-cpu/test_kernels
+
+  build-windows:
+    # Hosted runners have no NVIDIA GPU: this job proves the CUDA build and packaging.
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/build-windows
+        with:
+          cuda-version: ${{ env.CUDA_VERSION }}
+
+      - name: Smoke test (no GPU needed)
+        shell: pwsh
+        run: |
+          $exe = "worker-cuda/build/demucs_cuda_worker.exe"
+          & $exe --list-models
+          $mb = (Get-Item $exe).Length / 1MB
+          "demucs_cuda_worker.exe: {0:N1} MB" -f $mb
+          & dumpbin /dependents $exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demucs-cuda-worker-exe
+          path: worker-cuda/build/demucs_cuda_worker.exe
+          if-no-files-found: error

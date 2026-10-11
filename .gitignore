@@ -1,0 +1,10 @@
+worker-cuda/build*/
+models/
+goldens/
+release-assets/
+out/
+*.wav
+*.mp3
+__pycache__/
+.venv/
+.DS_Store
