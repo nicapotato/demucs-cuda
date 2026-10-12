@@ -17,7 +17,7 @@ runs:
       with:
         cuda: ${{ inputs.cuda-version }}
         method: network
-        sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
+        sub-packages: '["nvcc", "cudart", "nvtx", "visual_studio_integration"]'
 
     - uses: ilammy/msvc-dev-cmd@v1
       with:

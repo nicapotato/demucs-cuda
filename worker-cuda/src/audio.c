@@ -21,14 +21,7 @@
 #undef C
 
 #ifdef _WIN32
-#define COBJMACROS
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#include <mfapi.h>
-#include <mfidl.h>
-#include <mfreadwrite.h>
+#include "audio_mf.h"
 #endif
 
 void dc_audio_free(DcAudio *a) {
@@ -133,101 +126,15 @@ static int try_vorbis(const void *buf, size_t n, const char *path, DcAudio *out)
 
 #ifdef _WIN32
 static int try_media_foundation(const char *path, DcAudio *out) {
-  wchar_t wpath[DC_PATH_MAX];
-  if (!MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, DC_PATH_MAX)) {
-    return 0;
-  }
-  HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-  int com_init = SUCCEEDED(hr);
-  if (FAILED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) {
-    if (com_init) {
-      CoUninitialize();
-    }
-    return 0;
-  }
-  int ok = 0;
-  IMFSourceReader *reader = NULL;
-  IMFMediaType *type = NULL;
-  IMFMediaType *cur = NULL;
   float *pcm = NULL;
-  size_t len = 0, cap = 0;
-  UINT32 ch = 0, sr = 0;
-  const DWORD stream = (DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM;
-
-  if (FAILED(MFCreateSourceReaderFromURL(wpath, NULL, &reader))) {
-    goto done;
+  int ch = 0, sr = 0;
+  long long frames = 0;
+  if (!dc_mf_decode(path, &pcm, &ch, &frames, &sr)) {
+    return 0;
   }
-  IMFSourceReader_SetStreamSelection(reader, (DWORD)MF_SOURCE_READER_ALL_STREAMS, FALSE);
-  IMFSourceReader_SetStreamSelection(reader, stream, TRUE);
-  if (FAILED(MFCreateMediaType(&type))) {
-    goto done;
-  }
-  IMFMediaType_SetGUID(type, &MF_MT_MAJOR_TYPE, &MFMediaType_Audio);
-  IMFMediaType_SetGUID(type, &MF_MT_SUBTYPE, &MFAudioFormat_Float);
-  if (FAILED(IMFSourceReader_SetCurrentMediaType(reader, stream, NULL, type))) {
-    goto done;
-  }
-  if (FAILED(IMFSourceReader_GetCurrentMediaType(reader, stream, &cur))) {
-    goto done;
-  }
-  IMFMediaType_GetUINT32(cur, &MF_MT_AUDIO_NUM_CHANNELS, &ch);
-  IMFMediaType_GetUINT32(cur, &MF_MT_AUDIO_SAMPLES_PER_SECOND, &sr);
-  if (ch == 0 || sr == 0) {
-    goto done;
-  }
-  for (;;) {
-    DWORD flags = 0;
-    IMFSample *sample = NULL;
-    if (FAILED(IMFSourceReader_ReadSample(reader, stream, 0, NULL, &flags, NULL, &sample))) {
-      break;
-    }
-    if (sample) {
-      IMFMediaBuffer *mb = NULL;
-      if (SUCCEEDED(IMFSample_ConvertToContiguousBuffer(sample, &mb))) {
-        BYTE *p = NULL;
-        DWORD nbytes = 0;
-        if (SUCCEEDED(IMFMediaBuffer_Lock(mb, &p, NULL, &nbytes))) {
-          size_t nf = nbytes / sizeof(float);
-          if (len + nf > cap) {
-            cap = (len + nf) * 2;
-            float *np = (float *)realloc(pcm, cap * sizeof(float));
-            if (!np) {
-              dc_die("oom decoding %s", path);
-            }
-            pcm = np;
-          }
-          memcpy(pcm + len, p, nf * sizeof(float));
-          len += nf;
-          IMFMediaBuffer_Unlock(mb);
-        }
-        IMFMediaBuffer_Release(mb);
-      }
-      IMFSample_Release(sample);
-    }
-    if (flags & (MF_SOURCE_READERF_ENDOFSTREAM | MF_SOURCE_READERF_ERROR)) {
-      break;
-    }
-  }
-  if (len >= ch) {
-    *out = from_interleaved(pcm, (int)ch, (int64_t)(len / ch), (int)sr, path);
-    ok = 1;
-  }
-done:
+  *out = from_interleaved(pcm, ch, (int64_t)frames, sr, path);
   free(pcm);
-  if (cur) {
-    IMFMediaType_Release(cur);
-  }
-  if (type) {
-    IMFMediaType_Release(type);
-  }
-  if (reader) {
-    IMFSourceReader_Release(reader);
-  }
-  MFShutdown();
-  if (com_init) {
-    CoUninitialize();
-  }
-  return ok;
+  return 1;
 }
 #endif
 

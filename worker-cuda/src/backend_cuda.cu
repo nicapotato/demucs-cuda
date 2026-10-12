@@ -1,7 +1,10 @@
 /* CUDA runtime, elementwise and convolution-operand kernels. */
 #include "cuda_common.cuh"
 
+#if __has_include(<nvtx3/nvToolsExt.h>)
 #include <nvtx3/nvToolsExt.h>
+#define DK_HAVE_NVTX 1
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -95,9 +98,15 @@ extern "C" int dk_mem_info(size_t *free_bytes, size_t *total_bytes) {
   return cudaMemGetInfo(free_bytes, total_bytes) == cudaSuccess ? 0 : -1;
 }
 
+#ifdef DK_HAVE_NVTX
 extern "C" void dk_range_push(const char *name) { nvtxRangePushA(name); }
 
 extern "C" void dk_range_pop(void) { nvtxRangePop(); }
+#else
+extern "C" void dk_range_push(const char *name) { (void)name; }
+
+extern "C" void dk_range_pop(void) {}
+#endif
 
 extern "C" dc_half dk_pack_half(float v, int weight) {
   (void)weight;

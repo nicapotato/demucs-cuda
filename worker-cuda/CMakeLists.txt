@@ -63,7 +63,7 @@ if(DC_BACKEND STREQUAL "cuda")
   target_include_directories(dc_backend PRIVATE ${SRC} ${TP}/cutlass/include)
   target_compile_options(dc_backend PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr -lineinfo>
-    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/bigobj>)
+    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/bigobj -Xcompiler=/Zc:__cplusplus>)
   if(MSVC AND CMAKE_VERSION VERSION_LESS 3.27)
     # MSVC_RUNTIME_LIBRARY only reaches nvcc's host compiler from CMake 3.27
     target_compile_options(dc_backend PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/MT>)
@@ -113,7 +113,7 @@ else()
   set(DC_LAME dc_lame)
 endif()
 
-add_library(dc_audio STATIC ${SRC}/audio.c)
+add_library(dc_audio STATIC ${SRC}/audio.c $<$<PLATFORM_ID:Windows>:${SRC}/audio_mf.cpp>)
 target_include_directories(dc_audio PRIVATE ${TP}/dr_libs ${TP}/stb)
 target_link_libraries(dc_audio PUBLIC dc_core ${DC_LAME})
 if(WIN32)
