@@ -15,7 +15,7 @@ static __device__ float block_reduce(float v, float *sh, bool is_max) {
   }
   __syncthreads();
   int nw = (blockDim.x + 31) >> 5;
-  v = lane < nw ? sh[lane] : (is_max ? -INFINITY : 0.0f);
+  v = lane < nw ? sh[lane] : (is_max ? __int_as_float((int)0xff800000) : 0.0f);
   for (int o = 16; o > 0; o >>= 1) {
     float u = __shfl_xor_sync(0xffffffffu, v, o);
     v = is_max ? fmaxf(v, u) : v + u;
@@ -28,7 +28,7 @@ __global__ void k_softmax_to_half(const float *__restrict__ s, int64_t lds,
   __shared__ float sh[32];
   const float *row = s + (int64_t)blockIdx.x * lds;
   __half *out = p + (int64_t)blockIdx.x * ldp;
-  float mx = -INFINITY;
+  float mx = __int_as_float((int)0xff800000);
   for (int64_t j = threadIdx.x; j < L; j += blockDim.x) {
     mx = fmaxf(mx, row[j] * scale);
   }
