@@ -59,7 +59,8 @@ jobs:
           echo "Version: ${V} (tag v${V}); models ${MODELS_TAG}"
 
   build-worker:
-    runs-on: windows-latest
+    # windows-2022: CUDA 12.8 nvcc rejects the VS 2026 toolset on windows-latest.
+    runs-on: windows-2022
     needs: read-version
     timeout-minutes: 120
     env:

@@ -259,7 +259,7 @@ static void contiguous_strides(const int *shape, int ndim, int64_t *strides) {
 }
 
 DcTensor dc_reshape(DcTensor t, const int *shape, int ndim) {
-  int s[DC_MAX_DIM];
+  int s[DC_MAX_DIM] = {0};
   int infer = -1;
   int64_t known = 1;
   for (int i = 0; i < ndim; i++) {
