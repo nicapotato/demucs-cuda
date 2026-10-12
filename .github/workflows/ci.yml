@@ -62,5 +62,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: demucs-cuda-worker-exe
-          path: worker-cuda/build/demucs_cuda_worker.exe
+          path: |
+            worker-cuda/build/demucs_cuda_worker.exe
+            worker-cuda/build/test_kernels.exe
+            worker-cuda/build/test_stft.exe
+            worker-cuda/build/test_compare.exe
           if-no-files-found: error
